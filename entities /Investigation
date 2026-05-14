@@ -1,0 +1,163 @@
+{
+  "name": "Investigation",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Title of the investigation"
+    },
+    "query": {
+      "type": "string",
+      "description": "Original search query"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "completed",
+        "archived"
+      ],
+      "default": "active"
+    },
+    "summary": {
+      "type": "string",
+      "description": "AI-generated executive summary"
+    },
+    "entities_analyzed": {
+      "type": "array",
+      "description": "List of entities analyzed",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "significance": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "timeline_events": {
+      "type": "array",
+      "description": "Reconstructed timeline",
+      "items": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "significance": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "linked_entities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "description": "Relationship graph data",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "strength": {
+            "type": "number"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "narrative_analysis": {
+      "type": "object",
+      "description": "Media and narrative analysis",
+      "properties": {
+        "dominant_narratives": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sentiment_overview": {
+          "type": "string"
+        },
+        "bias_indicators": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "framing_patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "contradictions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "intelligence_report": {
+      "type": "string",
+      "description": "Full AI-generated intelligence report in markdown"
+    },
+    "confidence_score": {
+      "type": "number",
+      "description": "Overall confidence score 0-100"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "is_public": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "title",
+    "query"
+  ]
+}
