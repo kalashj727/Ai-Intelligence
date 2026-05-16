@@ -53,22 +53,33 @@ export default function IntelligenceSearch() {
       }, ms);
     });
 
-    const aiResult = await askGemini(q);
+        try {
+      const aiResult = await askGemini(q);
 
-    const investigation = {
-      id: Date.now().toString(),
-      title: aiResult.title || q,
-      query: q,
-      status: 'active',
-      summary: aiResult.summary || 'Analysis completed',
-      entities_analyzed: aiResult.entities_analyzed || [],
-      timeline_events: aiResult.timeline_events || [],
-      relationships: aiResult.relationships || [],
-      narrative_analysis: aiResult.narrative_analysis || {},
-      intelligence_report: aiResult.intelligence_report || '',
-      confidence_score: aiResult.confidence_score || 0,
-      tags: aiResult.tags || [],
-    };
+      const investigation = {
+        id: Date.now().toString(),
+        title: aiResult.title || q,
+        query: q,
+        status: 'active',
+        summary: aiResult.summary || 'Analysis completed',
+        entities_analyzed: aiResult.entities_analyzed || [],
+        timeline_events: aiResult.timeline_events || [],
+        relationships: aiResult.relationships || [],
+        narrative_analysis: aiResult.narrative_analysis || {},
+        intelligence_report: aiResult.intelligence_report || '',
+        confidence_score: aiResult.confidence_score || 0,
+        tags: aiResult.tags || [],
+      };
+
+      setIsAnalyzing(false);
+      setActiveStage(-1);
+      navigate(`/investigation?id=${investigation.id}`);
+    } catch (error) {
+      console.error('Search error:', error);
+      setIsAnalyzing(false);
+      setActiveStage(-1);
+      alert('Error: ' + error.message);
+    }
 
     setIsAnalyzing(false);
     setActiveStage(-1);
