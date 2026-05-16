@@ -43,7 +43,7 @@ export default function IntelligenceSearch() {
     setCompletedStages([]);
     setActiveStage(0);
 
-    // Cycle through agent stages visually
+    // Visual animation timing
     const stageTimings = [2000, 4000, 6500, 9000, 11500, 14000, 16000];
     stageTimings.forEach((ms, idx) => {
       setTimeout(() => {
@@ -70,7 +70,7 @@ export default function IntelligenceSearch() {
         tags: aiResult.tags || [],
       };
 
-      // Store in localStorage so InvestigationWorkspace can read it
+      // Save to localStorage so the report page can display it
       const existing = JSON.parse(localStorage.getItem('investigations') || '[]');
       localStorage.setItem('investigations', JSON.stringify([investigation, ...existing]));
 
@@ -100,7 +100,6 @@ export default function IntelligenceSearch() {
         </motion.div>
       </div>
 
-      {/* Search Box */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
         <div className="glass rounded-xl p-1.5 glow-primary">
           <div className="flex items-center gap-2">
@@ -127,7 +126,6 @@ export default function IntelligenceSearch() {
         </div>
       </motion.div>
 
-      {/* Agent Progress Panel */}
       <AnimatePresence>
         {isAnalyzing && (
           <motion.div
@@ -154,7 +152,6 @@ export default function IntelligenceSearch() {
                 {AGENT_STAGES.map((stage, i) => {
                   const isDone = completedStages.includes(i);
                   const isActive = activeStage === i;
-                  const isPending = !isDone && !isActive;
                   return (
                     <div key={stage.id} className="flex items-center gap-3">
                       <div className="shrink-0">
@@ -177,9 +174,7 @@ export default function IntelligenceSearch() {
                         </span>
                       </div>
                       {isActive && (
-                        <motion.div
-                          className="w-24 h-1 bg-secondary rounded-full overflow-hidden"
-                        >
+                        <motion.div className="w-24 h-1 bg-secondary rounded-full overflow-hidden">
                           <motion.div
                             className="h-full bg-primary rounded-full"
                             initial={{ width: '5%' }}
@@ -201,7 +196,6 @@ export default function IntelligenceSearch() {
         )}
       </AnimatePresence>
 
-      {/* Suggestions */}
       {!isAnalyzing && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -242,7 +236,7 @@ export default function IntelligenceSearch() {
 
       <div className="mt-6 text-center">
         <p className="text-[10px] font-mono text-muted-foreground/30 tracking-wider">
-          AI INFERENCE — VERIFY CRITICAL CLAIMS INDEPENDENTLY · USES ENHANCED AI CREDITS
+          AI INFERENCE — VERIFY CRITICAL CLAIMS INDEPENDENTLY
         </p>
       </div>
     </div>
