@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { askGemini } from 'src/utils/gemini.js';
+import { askGemini } from '../utils/gemini.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, Zap, ArrowRight, Loader2, Sparkles, Globe, 
