@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { askGemini } from 'src/utils/gemini.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, Zap, ArrowRight, Loader2, Sparkles, Globe, 
@@ -53,18 +53,14 @@ export default function IntelligenceSearch() {
       }, ms);
     });
 
-    const aiResult = await base44.integrations.Core.InvokeLLM({
-      prompt: buildDeepInvestigationPrompt(q),
-      add_context_from_internet: true,
-      response_json_schema: INVESTIGATION_JSON_SCHEMA,
-      model: 'gemini_3_flash',
-    });
+    const aiResult = await askGemini(q);
 
-    const investigation = await base44.entities.Investigation.create({
+    const investigation = {
+      id: Date.now().toString(),
       title: aiResult.title || q,
       query: q,
       status: 'active',
-      summary: aiResult.summary,
+      summary: aiResult.summary || 'Analysis completed',
       entities_analyzed: aiResult.entities_analyzed || [],
       timeline_events: aiResult.timeline_events || [],
       relationships: aiResult.relationships || [],
@@ -72,7 +68,7 @@ export default function IntelligenceSearch() {
       intelligence_report: aiResult.intelligence_report || '',
       confidence_score: aiResult.confidence_score || 0,
       tags: aiResult.tags || [],
-    });
+    };
 
     setIsAnalyzing(false);
     setActiveStage(-1);
