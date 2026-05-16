@@ -47,7 +47,7 @@ async function askAI(query) {
         'X-Title': 'NEXUS Intelligence'
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-exp:free',
+        model: 'google/gemini-2.0-flash-001', // CORRECT model ID - free tier available
         messages: [{
           role: 'user',
           content: `You are NEXUS intelligence. Analyze this query and provide a structured report: "${query}"
