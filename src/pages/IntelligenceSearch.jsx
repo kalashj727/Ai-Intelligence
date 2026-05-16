@@ -30,21 +30,28 @@ const AGENT_STAGES = [
   { id: 'narrative',label: 'Narrative Analysis Agent',        desc: 'Analyzing media framing, propaganda signals, contradictions...' },
   { id: 'report',   label: 'Intelligence Report Generator',   desc: 'Compiling dossier with citations and confidence scoring...' },
 ];
-
 async function askGemini(query) {
-  if (!GEMINI_API_KEY) {
+  const OPENROUTER_API_KEY = import.meta.env.VITE_GEMINI_API_KEY; // We'll reuse the same env var name
+  
+  if (!OPENROUTER_API_KEY) {
     throw new Error('API key is missing. Add VITE_GEMINI_API_KEY in Vercel Settings → Environment Variables, then redeploy.');
   }
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    'https://openrouter.ai/api/v1/chat/completions',
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'HTTP-Referer': 'https://ai-intelligence-nine.vercel.app', // Required by OpenRouter
+        'X-Title': 'NEXUS Intelligence'
+      },
       body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `You are NEXUS intelligence. Analyze this query and provide a structured report: "${query}"
+        model: 'google/gemini-2.0-flash-exp:free', // FREE Gemini via OpenRouter
+        messages: [{
+          role: 'user',
+          content: `You are NEXUS intelligence. Analyze this query and provide a structured report: "${query}"
 
 Return ONLY valid JSON:
 {
@@ -58,15 +65,38 @@ Return ONLY valid JSON:
   "confidence_score": 85,
   "tags": ["tag1"]
 }`
-          }]
         }]
       })
     }
   );
 
   const data = await response.json();
-  console.log('Gemini raw response:', data);
+  console.log('OpenRouter raw response:', data);
 
+  if (data.error) {
+    throw new Error(data.error.message || 'OpenRouter API error');
+  }
+
+  const text = data.choices?.[0]?.message?.content || '';
+  
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) return JSON.parse(jsonMatch[0]);
+    return JSON.parse(text);
+  } catch (e) {
+    return {
+      title: query,
+      summary: text.substring(0, 500),
+      entities_analyzed: [],
+      timeline_events: [],
+      relationships: [],
+      narrative_analysis: { main_narrative: text, contradictions: [], propaganda_signals: [] },
+      intelligence_report: text,
+      confidence_score: 70,
+      tags: []
+    };
+  }
+}
   if (data.error) {
     throw new Error(data.error.message || 'Gemini API error');
   }
