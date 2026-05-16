@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { askGemini } from '../utils/gemini.js';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, Zap, ArrowRight, Loader2, Sparkles, Globe, 
@@ -8,6 +7,10 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+
+// DEBUG: Check if API key exists
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+console.log('GEMINI KEY EXISTS?', !!GEMINI_API_KEY);
 
 const suggestions = [
   { icon: Users, text: 'Rajat Sharma connection with BJP and political ecosystem' },
@@ -27,6 +30,68 @@ const AGENT_STAGES = [
   { id: 'narrative',label: 'Narrative Analysis Agent',        desc: 'Analyzing media framing, propaganda signals, contradictions...' },
   { id: 'report',   label: 'Intelligence Report Generator',   desc: 'Compiling dossier with citations and confidence scoring...' },
 ];
+
+async function askGemini(query) {
+  if (!GEMINI_API_KEY) {
+    throw new Error('API key is missing. Add VITE_GEMINI_API_KEY in Vercel Settings → Environment Variables, then redeploy.');
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `You are NEXUS intelligence. Analyze this query and provide a structured report: "${query}"
+
+Return ONLY valid JSON:
+{
+  "title": "Investigation Title",
+  "summary": "Executive summary",
+  "entities_analyzed": ["Name 1", "Name 2"],
+  "timeline_events": [{"date": "2024-01-01", "event": "Event", "significance": "high"}],
+  "relationships": [{"source": "A", "target": "B", "type": "political", "evidence": "Details"}],
+  "narrative_analysis": {"main_narrative": "Main story", "contradictions": [], "propaganda_signals": []},
+  "intelligence_report": "Full detailed report",
+  "confidence_score": 85,
+  "tags": ["tag1"]
+}`
+          }]
+        }]
+      })
+    }
+  );
+
+  const data = await response.json();
+  console.log('Gemini raw response:', data);
+
+  if (data.error) {
+    throw new Error(data.error.message || 'Gemini API error');
+  }
+
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) return JSON.parse(jsonMatch[0]);
+    return JSON.parse(text);
+  } catch (e) {
+    // If Gemini returns plain text, wrap it
+    return {
+      title: query,
+      summary: text.substring(0, 500),
+      entities_analyzed: [],
+      timeline_events: [],
+      relationships: [],
+      narrative_analysis: { main_narrative: text, contradictions: [], propaganda_signals: [] },
+      intelligence_report: text,
+      confidence_score: 70,
+      tags: []
+    };
+  }
+}
 
 export default function IntelligenceSearch() {
   const [query, setQuery] = useState('');
@@ -53,7 +118,9 @@ export default function IntelligenceSearch() {
     });
 
     try {
+      console.log('Starting search for:', q);
       const aiResult = await askGemini(q);
+      console.log('AI Result:', aiResult);
 
       const investigation = {
         id: Date.now().toString(),
@@ -70,7 +137,7 @@ export default function IntelligenceSearch() {
         tags: aiResult.tags || [],
       };
 
-      // Save to localStorage so the report page can display it
+      // Save to localStorage
       const existing = JSON.parse(localStorage.getItem('investigations') || '[]');
       localStorage.setItem('investigations', JSON.stringify([investigation, ...existing]));
 
@@ -81,7 +148,7 @@ export default function IntelligenceSearch() {
       console.error('Search error:', error);
       setIsAnalyzing(false);
       setActiveStage(-1);
-      alert('Error: ' + error.message);
+      alert('ERROR: ' + error.message);
     }
   };
 
