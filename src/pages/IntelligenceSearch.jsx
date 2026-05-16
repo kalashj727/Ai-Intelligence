@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { buildDeepInvestigationPrompt, INVESTIGATION_JSON_SCHEMA } from '@/lib/investigationPrompt';
 
 const suggestions = [
   { icon: Users, text: 'Rajat Sharma connection with BJP and political ecosystem' },
@@ -53,7 +52,7 @@ export default function IntelligenceSearch() {
       }, ms);
     });
 
-        try {
+    try {
       const aiResult = await askGemini(q);
 
       const investigation = {
@@ -71,6 +70,10 @@ export default function IntelligenceSearch() {
         tags: aiResult.tags || [],
       };
 
+      // Store in localStorage so InvestigationWorkspace can read it
+      const existing = JSON.parse(localStorage.getItem('investigations') || '[]');
+      localStorage.setItem('investigations', JSON.stringify([investigation, ...existing]));
+
       setIsAnalyzing(false);
       setActiveStage(-1);
       navigate(`/investigation?id=${investigation.id}`);
@@ -80,10 +83,6 @@ export default function IntelligenceSearch() {
       setActiveStage(-1);
       alert('Error: ' + error.message);
     }
-
-    setIsAnalyzing(false);
-    setActiveStage(-1);
-    navigate(`/investigation?id=${investigation.id}`);
   };
 
   return (
