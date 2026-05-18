@@ -8,9 +8,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
-// DEBUG: Check if API key exists
+// DEBUG: Check if API key exists and show first 10 chars
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 console.log('GEMINI KEY EXISTS?', !!GEMINI_API_KEY);
+console.log('KEY PREFIX:', GEMINI_API_KEY ? GEMINI_API_KEY.substring(0, 10) : 'NONE');
 
 const suggestions = [
   { icon: Users, text: 'Rajat Sharma connection with BJP and political ecosystem' },
@@ -35,6 +36,9 @@ async function askGemini(query) {
   if (!GEMINI_API_KEY) {
     throw new Error('API key is missing. Add VITE_GEMINI_API_KEY in Vercel Settings → Environment Variables, then redeploy.');
   }
+
+  // Debug: show we're calling Gemini
+  console.log('Calling Gemini API for query:', query);
 
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
