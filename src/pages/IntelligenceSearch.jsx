@@ -9,8 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
 // DEBUG: Check if API key exists
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-console.log('API KEY EXISTS?', !!API_KEY);
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+console.log('GEMINI KEY EXISTS?', !!GEMINI_API_KEY);
 
 const suggestions = [
   { icon: Users, text: 'Rajat Sharma connection with BJP and political ecosystem' },
@@ -31,52 +31,59 @@ const AGENT_STAGES = [
   { id: 'report',   label: 'Intelligence Report Generator',   desc: 'Compiling dossier with citations and confidence scoring...' },
 ];
 
-async function askAI(query) {
-  if (!API_KEY) {
+async function askGemini(query) {
+  if (!GEMINI_API_KEY) {
     throw new Error('API key is missing. Add VITE_GEMINI_API_KEY in Vercel Settings → Environment Variables, then redeploy.');
   }
 
   const response = await fetch(
-    'https://openrouter.ai/api/v1/chat/completions',
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${API_KEY}`,
-        'HTTP-Referer': 'https://ai-intelligence-nine.vercel.app',
-        'X-Title': 'NEXUS Intelligence'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.1-70b-instruct:free', // CORRECT model ID - free tier available
-        messages: [{
-          role: 'user',
-          content: `You are NEXUS intelligence. Analyze this query and provide a structured report: "${query}"
+        contents: [{
+          parts: [{
+            text: `You are NEXUS, a multi-agent investigative intelligence platform. Analyze the following query and provide a structured intelligence report:
 
-Return ONLY valid JSON:
+Query: "${query}"
+
+Provide your response in this exact JSON format:
 {
   "title": "Investigation Title",
-  "summary": "Executive summary",
-  "entities_analyzed": ["Name 1", "Name 2"],
-  "timeline_events": [{"date": "2024-01-01", "event": "Event", "significance": "high"}],
-  "relationships": [{"source": "A", "target": "B", "type": "political", "evidence": "Details"}],
-  "narrative_analysis": {"main_narrative": "Main story", "contradictions": [], "propaganda_signals": []},
-  "intelligence_report": "Full detailed report",
+  "summary": "Executive summary of findings",
+  "entities_analyzed": ["Entity 1", "Entity 2"],
+  "timeline_events": [
+    {"date": "YYYY-MM-DD", "event": "Event description", "significance": "high/medium/low"}
+  ],
+  "relationships": [
+    {"source": "Entity A", "target": "Entity B", "type": "financial/political/personal", "evidence": "Description"}
+  ],
+  "narrative_analysis": {
+    "main_narrative": "Primary media narrative",
+    "contradictions": ["Contradiction 1"],
+    "propaganda_signals": ["Signal 1"]
+  },
+  "intelligence_report": "Detailed analysis report",
   "confidence_score": 85,
-  "tags": ["tag1"]
-}`
+  "tags": ["tag1", "tag2"]
+}
+
+Be thorough, analytical, and provide specific details. Include dates, names, and concrete evidence where possible.`
+          }]
         }]
       })
     }
   );
 
   const data = await response.json();
-  console.log('OpenRouter raw response:', data);
+  console.log('Gemini raw response:', data);
 
   if (data.error) {
-    throw new Error(data.error.message || 'OpenRouter API error');
+    throw new Error(data.error.message || 'Gemini API error');
   }
 
-  const text = data.choices?.[0]?.message?.content || '';
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   
   try {
     const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -122,7 +129,7 @@ export default function IntelligenceSearch() {
 
     try {
       console.log('Starting search for:', q);
-      const aiResult = await askAI(q);
+      const aiResult = await askGemini(q);
       console.log('AI Result:', aiResult);
 
       const investigation = {
