@@ -1,6 +1,4 @@
 import React, { useState, useCallback } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,63 +9,19 @@ import {
   ArrowLeft, Clock, Network, Eye, FileText, Users, 
   Shield, Loader2, Zap, CheckCircle2
 } from 'lucide-react';
-import DeepTimeline from '@/components/investigation/DeepTimeline';
-import LiveRelationshipGraph from '@/components/investigation/LiveRelationshipGraph';
-import NarrativePanel from '@/components/investigation/NarrativePanel';
-import EntityCards from '@/components/investigation/EntityCards';
-import IntelligenceReport from '@/components/investigation/IntelligenceReport';
 
 export default function InvestigationWorkspace() {
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get('id');
-  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('entities');
   const [graphExpansions, setGraphExpansions] = useState(0);
-  const [expansionNotice, setExpansionNotice] = useState(null);
 
-  const { data: investigation, isLoading } = useQuery({
-    queryKey: ['investigation', id],
-    queryFn: () => base44.entities.Investigation.filter({ id }),
-    enabled: !!id,
-    select: (data) => data?.[0],
+  // Read from localStorage instead of base44
+  const [investigation, setInvestigation] = useState(() => {
+    if (!id) return null;
+    const all = JSON.parse(localStorage.getItem('investigations') || '[]');
+    return all.find(inv => inv.id === id) || null;
   });
-
-  // When the graph discovers new nodes/edges/events, merge them into the saved investigation
-  const handleGraphExpanded = useCallback(async (expansion) => {
-    if (!investigation) return;
-
-    const existingEntities = investigation.entities_analyzed || [];
-    const existingRels = investigation.relationships || [];
-    const existingEvents = investigation.timeline_events || [];
-
-    const newEntities = (expansion.new_entities || []).filter(
-      e => !existingEntities.find(x => x.name === e.name)
-    );
-    const newRels = (expansion.new_relationships || []).filter(
-      r => !existingRels.find(x => (x.source === r.source && x.target === r.target) || (x.source === r.target && x.target === r.source))
-    );
-    const newEvents = (expansion.new_timeline_events || []).filter(
-      e => !existingEvents.find(x => x.title === e.title)
-    );
-
-    if (newEntities.length === 0 && newRels.length === 0 && newEvents.length === 0) return;
-
-    await base44.entities.Investigation.update(investigation.id, {
-      entities_analyzed: [...existingEntities, ...newEntities],
-      relationships: [...existingRels, ...newRels],
-      timeline_events: [...existingEvents, ...newEvents],
-    });
-
-    setGraphExpansions(n => n + 1);
-    setExpansionNotice({
-      entities: newEntities.length,
-      relations: newRels.length,
-      events: newEvents.length,
-    });
-    setTimeout(() => setExpansionNotice(null), 4000);
-
-    queryClient.invalidateQueries({ queryKey: ['investigation', id] });
-  }, [investigation, id, queryClient]);
 
   if (!id) {
     return (
@@ -75,15 +29,6 @@ export default function InvestigationWorkspace() {
         <Shield className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
         <p className="text-sm text-muted-foreground">No investigation selected</p>
         <Link to="/search"><Button variant="outline" size="sm" className="mt-4 font-mono text-xs">GO TO SEARCH</Button></Link>
-      </div>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-        <span className="text-xs font-mono text-muted-foreground">Loading investigation...</span>
       </div>
     );
   }
@@ -101,33 +46,18 @@ export default function InvestigationWorkspace() {
   const inv = investigation;
   const entityCount = inv.entities_analyzed?.length || 0;
   const timelineCount = inv.timeline_events?.length || 0;
-  const subEventCount = (inv.timeline_events || []).reduce((s, e) => s + (e.sub_events?.length || 0), 0);
   const relCount = inv.relationships?.length || 0;
+
+  // Safe data access with defaults
+  const entities = inv.entities_analyzed || [];
+  const timelineEvents = inv.timeline_events || [];
+  const relationships = inv.relationships || [];
+  const narrativeAnalysis = inv.narrative_analysis || { main_narrative: '', contradictions: [], propaganda_signals: [] };
+  const intelligenceReport = inv.intelligence_report || '';
+  const confidenceScore = inv.confidence_score || 0;
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto">
-      {/* Expansion success notice */}
-      <AnimatePresence>
-        {expansionNotice && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-4 right-4 z-50 glass-strong rounded-xl p-4 border border-green-500/20 max-w-xs"
-          >
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-semibold text-green-400">Graph Expanded</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  +{expansionNotice.entities} entities · +{expansionNotice.relations} connections · +{expansionNotice.events} events added
-                </p>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-6">
         <div className="flex-1 min-w-0">
@@ -142,14 +72,9 @@ export default function InvestigationWorkspace() {
             }`}>
               {inv.status}
             </Badge>
-            {inv.confidence_score > 0 && (
+            {confidenceScore > 0 && (
               <Badge variant="outline" className="text-[10px] font-mono border-primary/30 text-primary">
-                {inv.confidence_score}% confidence
-              </Badge>
-            )}
-            {graphExpansions > 0 && (
-              <Badge className="text-[10px] bg-green-500/10 text-green-400 border-green-500/20">
-                <Zap className="w-2.5 h-2.5 mr-1" /> {graphExpansions} expansion{graphExpansions !== 1 ? 's' : ''}
+                {confidenceScore}% confidence
               </Badge>
             )}
             {inv.tags?.slice(0, 4).map((tag, i) => (
@@ -184,7 +109,7 @@ export default function InvestigationWorkspace() {
             <TabsTrigger value="timeline" className="text-xs font-mono px-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Clock className="w-3.5 h-3.5 mr-1.5" />
               Timeline
-              <span className="ml-1.5 text-[9px] opacity-70">{timelineCount}{subEventCount > 0 ? `+${subEventCount}` : ''}</span>
+              <span className="ml-1.5 text-[9px] opacity-70">{timelineCount}</span>
             </TabsTrigger>
             <TabsTrigger value="graph" className="text-xs font-mono px-3 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Network className="w-3.5 h-3.5 mr-1.5" />
@@ -203,37 +128,117 @@ export default function InvestigationWorkspace() {
         </div>
 
         <TabsContent value="entities">
-          <EntityCards entities={inv.entities_analyzed} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {entities.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground text-sm">No entities analyzed</div>
+            ) : (
+              entities.map((entity, i) => (
+                <Card key={i} className="glass p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold">{typeof entity === 'string' ? entity : entity.name || entity}</span>
+                  </div>
+                  {entity.description && <p className="text-xs text-muted-foreground">{entity.description}</p>}
+                </Card>
+              ))
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="timeline">
-          <DeepTimeline events={inv.timeline_events} />
+          <div className="space-y-3">
+            {timelineEvents.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground text-sm">No timeline events</div>
+            ) : (
+              timelineEvents.map((event, i) => (
+                <Card key={i} className="glass p-4">
+                  <div className="flex items-start gap-3">
+                    <Clock className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-mono text-primary">{event.date || 'N/A'}</span>
+                        <Badge variant="outline" className="text-[9px]">{event.significance || 'medium'}</Badge>
+                      </div>
+                      <p className="text-sm">{event.event || event.title || 'Event'}</p>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="graph">
           <div className="mb-4 flex items-start gap-3 p-3 glass rounded-lg border border-primary/10">
             <Zap className="w-4 h-4 text-primary shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs font-semibold">Live Intelligence Graph</p>
+              <p className="text-xs font-semibold">Relationship Graph</p>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Click any node to inspect it. Use "Expand Intelligence" to trigger a new AI investigation around that entity — new nodes, connections, and timeline events will be discovered and merged into this investigation in real time.
+                {relationships.length} connections mapped between entities.
               </p>
             </div>
           </div>
-          <LiveRelationshipGraph
-            relationships={inv.relationships}
-            entities={inv.entities_analyzed}
-            investigationQuery={inv.query}
-            onGraphExpanded={handleGraphExpanded}
-          />
+          <div className="space-y-2">
+            {relationships.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground text-sm">No relationships mapped</div>
+            ) : (
+              relationships.map((rel, i) => (
+                <Card key={i} className="glass p-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium">{rel.source}</span>
+                    <span className="text-muted-foreground">→</span>
+                    <span className="font-medium">{rel.target}</span>
+                    <Badge variant="outline" className="text-[9px] ml-2">{rel.type}</Badge>
+                  </div>
+                  {rel.evidence && <p className="text-xs text-muted-foreground mt-1">{rel.evidence}</p>}
+                </Card>
+              ))
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="narrative">
-          <NarrativePanel narrativeAnalysis={inv.narrative_analysis} />
+          <Card className="glass p-6">
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold mb-2">Main Narrative</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{narrativeAnalysis.main_narrative || 'No narrative analysis available'}</p>
+            </div>
+            {narrativeAnalysis.contradictions?.length > 0 && (
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold mb-2 text-amber-400">Contradictions</h3>
+                <ul className="space-y-1">
+                  {narrativeAnalysis.contradictions.map((c, i) => (
+                    <li key={i} className="text-xs text-muted-foreground">• {c}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {narrativeAnalysis.propaganda_signals?.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold mb-2 text-red-400">Propaganda Signals</h3>
+                <ul className="space-y-1">
+                  {narrativeAnalysis.propaganda_signals.map((s, i) => (
+                    <li key={i} className="text-xs text-muted-foreground">• {s}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </Card>
         </TabsContent>
 
         <TabsContent value="report">
-          <IntelligenceReport report={inv.intelligence_report} confidenceScore={inv.confidence_score} />
+          <Card className="glass p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <FileText className="w-4 h-4 text-primary" />
+              <span className="text-[10px] font-mono text-muted-foreground tracking-wider">INTELLIGENCE REPORT</span>
+              {confidenceScore > 0 && (
+                <Badge variant="outline" className="text-[10px] font-mono ml-auto">{confidenceScore}% confidence</Badge>
+              )}
+            </div>
+            <div className="prose prose-invert max-w-none">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{intelligenceReport || 'No report generated'}</p>
+            </div>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
