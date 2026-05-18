@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
 import { motion } from 'framer-motion';
 import { 
   Bookmark, Search, ArrowRight, Trash2, Clock, 
@@ -20,17 +18,17 @@ import {
 export default function Investigations() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const queryClient = useQueryClient();
 
-  const { data: investigations = [], isLoading } = useQuery({
-    queryKey: ['investigations'],
-    queryFn: () => base44.entities.Investigation.list('-created_date', 50),
+  // Read from localStorage instead of base44
+  const [investigations, setInvestigations] = useState(() => {
+    return JSON.parse(localStorage.getItem('investigations') || '[]');
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Investigation.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['investigations'] }),
-  });
+  const deleteInvestigation = (id) => {
+    const updated = investigations.filter(inv => inv.id !== id);
+    localStorage.setItem('investigations', JSON.stringify(updated));
+    setInvestigations(updated);
+  };
 
   const filtered = investigations.filter(inv => {
     const matchesSearch = !searchTerm || 
@@ -81,16 +79,7 @@ export default function Investigations() {
       </div>
 
       {/* List */}
-      {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="glass rounded-lg p-5 animate-pulse">
-              <div className="h-4 bg-secondary rounded w-1/3 mb-2" />
-              <div className="h-3 bg-secondary rounded w-2/3" />
-            </div>
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
+      {filtered.length === 0 ? (
         <Card className="glass p-12 text-center">
           <Bookmark className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">
@@ -158,7 +147,7 @@ export default function Investigations() {
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction 
-                            onClick={() => deleteMutation.mutate(inv.id)}
+                            onClick={() => deleteInvestigation(inv.id)}
                             className="bg-destructive hover:bg-destructive/90"
                           >
                             Delete
