@@ -48,7 +48,7 @@ async function askAI(query) {
         'Authorization': `Bearer ${API_KEY}`
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',  // FIXED: was llama-3.1-70b-versatile (decommissioned Jan 2025)
+        model: 'llama-3.3-70b-versatile',
         messages: [{
           role: 'user',
           content: `You are NEXUS, a multi-agent investigative intelligence platform. Analyze the following query and provide a structured intelligence report:
